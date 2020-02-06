@@ -58,6 +58,7 @@ github.com/urfave/cli v1.11.1-0.20151120215642-0302d3914d2a/go.mod h1:70zkFmudgC
 github.com/vmware/govcloudair v0.0.2/go.mod h1:Vxktpba+eP4dX5YzYP869DRPSm5ChQ2A/GUrmKSLvlo=
 github.com/vmware/govmomi v0.21.0/go.mod h1:zbnFoBQ9GIjs2RVETy8CNEpb+L+Lwkjs3XZUL0B3/m0=
 github.com/vmware/vmw-guestinfo v0.0.0-20170707015358-25eff159a728/go.mod h1:x9oS4Wk2s2u4tS29nEaDLdzvuHdB19CvSGJjPgkZJNk=
+golang.org/x/crypto v0.0.0-20170704135851-51714a8c4ac1 h1:HJSvIvK9iXhheeDr8hbIfZ0HWmqeVmv6cfxZV5Ot8AI=
 golang.org/x/crypto v0.0.0-20170704135851-51714a8c4ac1/go.mod h1:6SG95UA2DQfeDnfUPMdvaQW0Q7yPrPDi9nlGo2tz2b4=
 golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
 golang.org/x/crypto v0.0.0-20200117160349-530e935923ad h1:Jh8cai0fqIK+f6nG0UgPW5wFk8wmiMhM3AyciDBdtQg=

@@ -28,7 +28,7 @@ type Driver struct {
 	SubnetID                 string
 	TenancyID                string
 	CompartmentID            string
-	UserOCID                 string
+	UserID                   string
 	Region                   string
 	Fingerprint              string
 	PrivateKeyPath           string
@@ -87,68 +87,76 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 	log.Debug("oci.GetCreateFlags()")
 	return []mcnflag.Flag{
 		mcnflag.StringFlag{
-			Name:   "tenancy-id",
-			Usage:  "TODO",
+			Name:   "oci-tenancy-id",
+			Usage:  "The OCID of the tenancy in which to create node(s)",
 			EnvVar: "OCI_TENANCY_ID",
+			Value:  "",
 		},
 		mcnflag.StringFlag{
-			Name:   "vcn-id",
-			Usage:  "pre-existing VCN id in which you want to create the node",
+			Name:   "oci-vcn-id",
+			Usage:  "Pre-existing VCN id in which you want to create the node(s)",
 			EnvVar: "OCI_VCN_ID",
 		},
 		mcnflag.StringFlag{
-			Name:   "subnet-id",
-			Usage:  "pre-existing subnet id in which you want to create the node",
+			Name:   "oci-subnet-id",
+			Usage:  "Pre-existing subnet id in which you want to create the node(s)",
 			EnvVar: "OCI_SUBNET_ID",
 		},
 		mcnflag.StringFlag{
-			Name:   "compartment-id",
-			Usage:  "TODO",
+			Name:   "oci-compartment-id",
+			Usage:  "The OCID of the compartment in which to create node(s)",
 			EnvVar: "OCI_COMPARTMENT_ID",
 		},
 		mcnflag.StringFlag{
-			Name:   "user-id",
-			Usage:  "TODO",
+			Name:   "oci-user-id",
+			Usage:  "The OCID of a user who has access to the specified tenancy/compartment",
 			EnvVar: "OCI_USER_ID",
+			Value:  "",
 		},
 		mcnflag.StringFlag{
-			Name:   "region",
-			Usage:  "TODO",
+			Name:   "oci-region",
+			Usage:  "The region in which to create node(s)",
 			EnvVar: "OCI_REGION",
 		},
 		mcnflag.StringFlag{
-			Name:   "fingerprint",
-			Usage:  "TODO",
+			Name:   "oci-fingerprint",
+			Usage:  "The fingerprint corresponding to the specified user's private API Key",
 			EnvVar: "OCI_FINGERPRINT",
 		},
 		mcnflag.StringFlag{
-			Name:   "private-key-path",
-			Usage:  "TODO",
+			Name:   "oci-private-key-path",
+			Usage:  "The private API key path for the specified OCI user, in PEM format",
 			EnvVar: "OCI_PRIVATE_KEY_PATH",
 		},
 		mcnflag.StringFlag{
-			Name:   "private-key-passphrase",
-			Usage:  "TODO",
-			EnvVar: "OCI_PRIVATE_KEY_PASSPHRASE",
+			Name:   "oci-private-key-contents",
+			Usage:  "The private API key contents for the specified OCI user, in PEM format",
+			EnvVar: "OCI_PRIVATE_KEY_CONTENTS",
 		},
 		mcnflag.StringFlag{
-			Name:   "node-public-key-path",
-			Usage:  "TODO",
+			Name:   "oci-private-key-passphrase",
+			Usage:  "The passphrase (if any) that protects private key file the specified OCI user",
+			EnvVar: "OCI_PRIVATE_KEY_PASSPHRASE",
+			Value:  "",
+		},
+		mcnflag.StringFlag{
+			Name:   "oci-node-public-key-path",
+			Usage:  "Optional SSH public key for the nodes",
 			EnvVar: "OCI_NODE_PUBLIC_KEY_PATH",
 		},
 		mcnflag.StringFlag{
-			Name:   "node-availability-domain",
-			Usage:  "TODO",
+			Name:   "oci-node-availability-domain",
+			Usage:  "The availability domain of the node(s) should be placed in",
 			EnvVar: "OCI_NODE_AVAILABILITY_DOMAIN",
 		},
 		mcnflag.StringFlag{
-			Name:   "node-shape",
-			Usage:  "TODO",
+			Name:   "oci-node-shape",
+			Usage:  "The instance shape of the node(s)",
 			EnvVar: "OCI_NODE_SHAPE",
 		},
 		mcnflag.StringFlag{
-			Name:   "node-image",
-			Usage:  "TODO",
+			Name:   "oci-node-image",
+			Usage:  "The image to use for the node(s)",
 			EnvVar: "OCI_NODE_IMAGE",
 		},
 	}
@@ -294,45 +302,45 @@ func (d *Driver) Restart() error {
 // by RegisterCreateFlags
 func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
 	log.Debug("oci.SetConfigFromFlags(...)")
-	d.VCNID = flags.String("vcn-id")
+	d.VCNID = flags.String("oci-vcn-id")
 	if d.VCNID == "" {
-		return errors.New("no OCI VCNID specified (--vcn-id)")
+		return errors.New("no OCI VCNID specified (--oci-vcn-id)")
 	}
-	d.SubnetID = flags.String("subnet-id")
+	d.SubnetID = flags.String("oci-subnet-id")
 	if d.SubnetID == "" {
-		return errors.New("no OCI subnetId specified (--subnet-id)")
+		return errors.New("no OCI subnetId specified (--oci-subnet-id)")
 	}
-	d.TenancyID = flags.String("tenancy-id")
+	d.TenancyID = flags.String("oci-tenancy-id")
 	if d.TenancyID == "" {
-		return errors.New("no OCI tenancy specified (--tenancy-id)")
+		return errors.New("no OCI tenancy specified (--oci-tenancy-id)")
 	}
-	d.CompartmentID = flags.String("compartment-id")
+	d.CompartmentID = flags.String("oci-compartment-id")
 	if d.CompartmentID == "" {
-		return errors.New("no OCI compartment specified (--compartment-id)")
+		return errors.New("no OCI compartment specified (--oci-compartment-id)")
 	}
-	d.UserOCID = flags.String("user-id")
-	if d.UserOCID == "" {
-		return errors.New("no OCI user id specified (--user-id)")
+	d.UserID = flags.String("oci-user-id")
+	if d.UserID == "" {
+		return errors.New("no OCI user id specified (--oci-user-id)")
 	}
-	d.Region = flags.String("region")
+	d.Region = flags.String("oci-region")
 	if d.Region == "" {
-		return errors.New("no OCI region specified (--region)")
+		return errors.New("no OCI oci-region specified (--oci-region)")
 	}
-	d.AvailabilityDomain = flags.String("node-availability-domain")
+	d.AvailabilityDomain = flags.String("oci-node-availability-domain")
 	if d.AvailabilityDomain == "" {
-		return errors.New("no OCI node availability domain specified (--node-availability-domain)")
+		return errors.New("no OCI node availability domain specified (--oci-node-availability-domain)")
 	}
-	d.Shape = flags.String("node-shape")
+	d.Shape = flags.String("oci-node-shape")
 	if d.Shape == "" {
-		return errors.New("no OCI node shape specified (--node-shape)")
+		return errors.New("no OCI node shape specified (--oci-node-shape)")
 	}
-	d.Fingerprint = flags.String("fingerprint")
+	d.Fingerprint = flags.String("oci-fingerprint")
 	if d.Fingerprint == "" {
-		return errors.New("no OCI fingerprint specified (--fingerprint)")
+		return errors.New("no OCI oci-fingerprint specified (--oci-fingerprint)")
 	}
-	d.PrivateKeyPath = flags.String("private-key-path")
+	d.PrivateKeyPath = flags.String("oci-private-key-path")
 	if d.PrivateKeyPath == "" {
-		return errors.New("no private key path specified (--private-key-path)")
+		return errors.New("no private key path specified (--oci-private-key-path)")
 	}
 	if d.PrivateKeyContents == "" && d.PrivateKeyPath != "" {
 		privateKeyBytes, err := ioutil.ReadFile(d.PrivateKeyPath)
@@ -340,9 +348,10 @@ func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
 			d.PrivateKeyContents = string(privateKeyBytes)
 		}
 	}
-	d.NodePublicSSHKeyPath = flags.String("node-public-key-path")
+	d.PrivateKeyContents = flags.String("oci-private-key-contents")
+	d.NodePublicSSHKeyPath = flags.String("oci-node-public-key-path")
 	if d.NodePublicSSHKeyPath == "" {
-		return errors.New("no public key path specified (--node-public-key-path)")
+		return errors.New("no public key path specified (--oci-node-public-key-path)")
 	}
 	if d.NodePublicSSHKeyContents == "" && d.NodePublicSSHKeyPath != "" {
 		publicKeyBytes, err := ioutil.ReadFile(d.NodePublicSSHKeyPath)
@@ -350,7 +359,7 @@ func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
 			d.NodePublicSSHKeyContents = string(publicKeyBytes)
 		}
 	}
-	d.Image = flags.String("node-image")
+	d.Image = flags.String("oci-node-image")
 	return nil
 }
 
@@ -373,7 +382,7 @@ func (d *Driver) Stop() error {
 func (d *Driver) initOCIClient() (Client, error) {
 	configurationProvider := common.NewRawConfigurationProvider(
 		d.TenancyID,
-		d.UserOCID,
+		d.UserID,
 		d.Region,
 		d.Fingerprint,
 		d.PrivateKeyContents,

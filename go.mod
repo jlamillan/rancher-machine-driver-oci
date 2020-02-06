@@ -7,3 +7,5 @@ require (
 	github.com/stretchr/testify v0.0.0-20160221104443-1f4a1643a57e
 	golang.org/x/crypto v0.0.0-20200117160349-530e935923ad // indirect
 )
+
+go 1.13
