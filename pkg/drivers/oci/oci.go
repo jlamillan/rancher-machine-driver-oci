@@ -39,6 +39,7 @@ type Driver struct {
 	AvailabilityDomain       string
 	Shape                    string
 	Image                    string
+	DockerPort               int
 	// Runtime values
 	InstanceID string
 }
@@ -67,7 +68,7 @@ func (d *Driver) Create() error {
 		image = defaultImage
 	}
 
-	d.InstanceID, err = oci.CreateInstance(defaultNodeNamePfx + d.MachineName, d.AvailabilityDomain, d.CompartmentID, d.Shape, image, d.SubnetID, d.NodePublicSSHKeyContents)
+	d.InstanceID, err = oci.CreateInstance(defaultNodeNamePfx+d.MachineName, d.AvailabilityDomain, d.CompartmentID, d.Shape, image, d.SubnetID, d.NodePublicSSHKeyContents)
 	if err != nil {
 		return err
 	}
@@ -158,6 +159,12 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			Name:   "oci-node-image",
 			Usage:  "The image to use for the node(s)",
 			EnvVar: "OCI_NODE_IMAGE",
+		},
+		mcnflag.IntFlag{
+			Name:   "oci-node-docker-port",
+			Usage:  "Docker Port",
+			Value:  defaultDockerPort,
+			EnvVar: "OCI_NODE_DOCKER_PORT",
 		},
 	}
 }
