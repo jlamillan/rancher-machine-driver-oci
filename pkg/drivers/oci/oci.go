@@ -25,9 +25,10 @@ const (
 type Driver struct {
 	*drivers.BaseDriver
 	VCNID                    string
+	VCNCompartmentID         string
 	SubnetID                 string
 	TenancyID                string
-	CompartmentID            string
+	NodeCompartmentID        string
 	UserID                   string
 	Region                   string
 	Fingerprint              string
@@ -68,7 +69,7 @@ func (d *Driver) Create() error {
 		image = defaultImage
 	}
 
-	d.InstanceID, err = oci.CreateInstance(defaultNodeNamePfx+d.MachineName, d.AvailabilityDomain, d.CompartmentID, d.Shape, image, d.SubnetID, d.NodePublicSSHKeyContents)
+	d.InstanceID, err = oci.CreateInstance(defaultNodeNamePfx+d.MachineName, d.AvailabilityDomain, d.NodeCompartmentID, d.Shape, image, d.SubnetID, d.NodePublicSSHKeyContents)
 	if err != nil {
 		return err
 	}
@@ -104,9 +105,14 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			EnvVar: "OCI_SUBNET_ID",
 		},
 		mcnflag.StringFlag{
-			Name:   "oci-compartment-id",
+			Name:   "oci-node-compartment-id",
 			Usage:  "The OCID of the compartment in which to create node(s)",
-			EnvVar: "OCI_COMPARTMENT_ID",
+			EnvVar: "OCI_NODE_COMPARTMENT_ID",
+		},
+		mcnflag.StringFlag{
+			Name:   "oci-vcn-compartment-id",
+			Usage:  "The OCID of the compartment in which the VCN exists",
+			EnvVar: "OCI_VCN_COMPARTMENT_ID",
 		},
 		mcnflag.StringFlag{
 			Name:   "oci-user-id",
@@ -178,7 +184,7 @@ func (d *Driver) GetIP() (string, error) {
 		return "", err
 	}
 
-	return oci.GetInstanceIP(d.InstanceID, d.CompartmentID)
+	return oci.GetInstanceIP(d.InstanceID, d.NodeCompartmentID)
 }
 
 // GetMachineName returns the name of the machine
@@ -274,7 +280,7 @@ func (d *Driver) PreCreateCheck() error {
 		return err
 	}
 
-	image := oci.getImageID(d.CompartmentID, defaultImage)
+	image := oci.getImageID(d.NodeCompartmentID, defaultImage)
 
 	if len(*image) == 0 {
 		return fmt.Errorf("could not retrieve node image ID from OCI")
@@ -321,9 +327,13 @@ func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
 	if d.TenancyID == "" {
 		return errors.New("no OCI tenancy specified (--oci-tenancy-id)")
 	}
-	d.CompartmentID = flags.String("oci-compartment-id")
-	if d.CompartmentID == "" {
-		return errors.New("no OCI compartment specified (--oci-compartment-id)")
+	d.NodeCompartmentID = flags.String("oci-node-compartment-id")
+	if d.NodeCompartmentID == "" {
+		return errors.New("no OCI compartment specified for node (--oci-node-compartment-id)")
+	}
+	d.VCNCompartmentID = flags.String("oci-vcn-compartment-id")
+	if d.VCNCompartmentID == "" {
+		return errors.New("no OCI compartment specified for VCN (--oci-vcn-compartment-id)")
 	}
 	d.UserID = flags.String("oci-user-id")
 	if d.UserID == "" {
