@@ -65,12 +65,7 @@ func (d *Driver) Create() error {
 		return err
 	}
 
-	var image = ""
-	if d.Image == "" {
-		image = defaultImage
-	}
-
-	d.InstanceID, err = oci.CreateInstance(defaultNodeNamePfx+d.MachineName, d.AvailabilityDomain, d.NodeCompartmentID, d.Shape, image, d.SubnetID, d.NodePublicSSHKeyContents)
+	d.InstanceID, err = oci.CreateInstance(defaultNodeNamePfx+d.MachineName, d.AvailabilityDomain, d.NodeCompartmentID, d.Shape, d.Image, d.SubnetID, d.NodePublicSSHKeyContents)
 	if err != nil {
 		return err
 	}
@@ -113,6 +108,7 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 		mcnflag.StringFlag{
 			Name:   "oci-node-image",
 			Usage:  "Specify image the node(s) should use",
+			Value:  defaultImage,
 			EnvVar: "OCI_NODE_IMAGE",
 		},
 		mcnflag.StringFlag{
@@ -291,8 +287,10 @@ func (d *Driver) PreCreateCheck() error {
 		return err
 	}
 
-	image := oci.getImageID(d.NodeCompartmentID, defaultImage)
-
+	image, err := oci.getImageID(d.NodeCompartmentID, defaultImage)
+	if err != nil {
+		return err
+	}
 	if len(*image) == 0 {
 		return fmt.Errorf("could not retrieve node image ID from OCI")
 	}

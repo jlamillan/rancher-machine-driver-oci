@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"github.com/oracle/oci-go-sdk/example/helpers"
 	"github.com/rancher/machine/libmachine/log"
 	"strings"
@@ -62,12 +63,18 @@ func (c *Client) CreateInstance(displayName, availabilityDomain, compartmentID, 
 	}
 
 	// Just in case shortened or lower-case availability domain name was used
+	log.Debugf("Resolving availability domain from %s", availabilityDomain)
 	for _, ad := range ads.Items {
 		if strings.Contains(*ad.Name, strings.ToUpper(availabilityDomain)) {
+			log.Debugf("Availability domain %s", *ad.Name)
 			availabilityDomain = *ad.Name
 		}
 	}
 
+	imageID, err := c.getImageID(compartmentID, nodeImageName)
+	if err != nil {
+		return "", err
+	}
 	// Create the launch compute instance request
 	request := core.LaunchInstanceRequest{
 		LaunchInstanceDetails: core.LaunchInstanceDetails{
@@ -83,7 +90,7 @@ func (c *Client) CreateInstance(displayName, availabilityDomain, compartmentID, 
 				"user_data":           base64.StdEncoding.EncodeToString(createCloudInitScript()),
 			},
 			SourceDetails: core.InstanceSourceViaImageDetails{
-				ImageId: c.getImageID(compartmentID, nodeImageName),
+				ImageId: imageID,
 			},
 		},
 	}
@@ -186,8 +193,14 @@ func createCloudInitScript() []byte {
 }
 
 // getImageID gets the most recent ImageId for the node image name
-func (c *Client) getImageID(compartmentID, nodeImageName string) *string {
+func (c *Client) getImageID(compartmentID, nodeImageName string) (*string, error) {
+
+	if nodeImageName == "" || compartmentID == "" {
+		return nil, errors.New("cannot retrieve image ID without a compartment and image name")
+	}
+
 	// Get list of images
+	log.Debugf("Resolving image ID from %s", nodeImageName)
 	request := core.ListImagesRequest{
 		CompartmentId:   &compartmentID,
 		SortBy:          core.ListImagesSortByTimecreated,
@@ -195,7 +208,7 @@ func (c *Client) getImageID(compartmentID, nodeImageName string) *string {
 	}
 	r, err := c.computeClient.ListImages(context.Background(), request)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
 	// Loop through the items to find an image to use.  The list is sorted by time created in descending order
@@ -203,10 +216,10 @@ func (c *Client) getImageID(compartmentID, nodeImageName string) *string {
 		if strings.HasPrefix(*image.DisplayName, nodeImageName) {
 			if !strings.Contains(*image.DisplayName, "GPU") {
 				log.Debugf("Using node image %s", *image.DisplayName)
-				return image.Id
+				return image.Id, nil
 			}
 		}
 	}
 
-	return nil
+	return nil, fmt.Errorf("could not retrieve image id for an image named %s", nodeImageName)
 }
