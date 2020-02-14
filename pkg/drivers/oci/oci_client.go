@@ -54,6 +54,20 @@ func newClient(configuration common.ConfigurationProvider) (*Client, error) {
 // CreateInstance creates a new compute instance.
 func (c *Client) CreateInstance(displayName, availabilityDomain, compartmentID, nodeShape, nodeImageName, nodeSubnetID, authorizedKeys string) (string, error) {
 
+	req := identity.ListAvailabilityDomainsRequest{}
+	req.CompartmentId = &compartmentID
+	ads, err := c.identityClient.ListAvailabilityDomains(context.Background(), req)
+	if err != nil {
+		return "", err
+	}
+
+	// Just in case shortened or lower-case availability domain name was used
+	for _, ad := range ads.Items {
+		if strings.Contains(*ad.Name, strings.ToUpper(availabilityDomain)) {
+			availabilityDomain = *ad.Name
+		}
+	}
+
 	// Create the launch compute instance request
 	request := core.LaunchInstanceRequest{
 		LaunchInstanceDetails: core.LaunchInstanceDetails{

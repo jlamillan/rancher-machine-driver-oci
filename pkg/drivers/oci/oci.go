@@ -96,7 +96,7 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 		},
 		mcnflag.StringFlag{
 			Name:   "oci-node-availability-domain",
-			Usage:  "Specify availability domain of the node(s) should be placed in",
+			Usage:  "Specify availability domain the node(s) should use",
 			EnvVar: "OCI_NODE_AVAILABILITY_DOMAIN",
 		},
 		mcnflag.IntFlag{
@@ -112,7 +112,7 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 		},
 		mcnflag.StringFlag{
 			Name:   "oci-node-image",
-			Usage:  "Specify image to use for the node(s)",
+			Usage:  "Specify image the node(s) should use",
 			EnvVar: "OCI_NODE_IMAGE",
 		},
 		mcnflag.StringFlag{
