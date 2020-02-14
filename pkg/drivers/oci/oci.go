@@ -24,23 +24,24 @@ const (
 // Driver is the implementation of BaseDriver interface
 type Driver struct {
 	*drivers.BaseDriver
-	VCNID                    string
-	VCNCompartmentID         string
-	SubnetID                 string
-	TenancyID                string
-	NodeCompartmentID        string
-	UserID                   string
-	Region                   string
+	AssignPublicIP           bool
+	AvailabilityDomain       string
+	DockerPort               int
 	Fingerprint              string
-	PrivateKeyPath           string
+	Image                    string
+	NodeCompartmentID        string
+	NodePublicSSHKeyContents string
+	NodePublicSSHKeyPath     string
 	PrivateKeyContents       string
 	PrivateKeyPassphrase     string
-	NodePublicSSHKeyPath     string
-	NodePublicSSHKeyContents string
-	AvailabilityDomain       string
+	PrivateKeyPath           string
+	Region                   string
 	Shape                    string
-	Image                    string
-	DockerPort               int
+	SubnetID                 string
+	TenancyID                string
+	UserID                   string
+	VCNCompartmentID         string
+	VCNID                    string
 	// Runtime values
 	InstanceID string
 }
@@ -88,42 +89,21 @@ func (d *Driver) DriverName() string {
 func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 	log.Debug("oci.GetCreateFlags()")
 	return []mcnflag.Flag{
-		mcnflag.StringFlag{
-			Name:   "oci-tenancy-id",
-			Usage:  "The OCID of the tenancy in which to create node(s)",
-			EnvVar: "OCI_TENANCY_ID",
-			Value:  "",
+		mcnflag.BoolFlag{
+			Name:   "oci-assign-public-ip",
+			Usage:  "Assign a public IP to the node",
+			EnvVar: "OCI_ASSIGN_PUBLIC_IP",
 		},
 		mcnflag.StringFlag{
-			Name:   "oci-vcn-id",
-			Usage:  "Pre-existing VCN id in which you want to create the node(s)",
-			EnvVar: "OCI_VCN_ID",
+			Name:   "oci-node-availability-domain",
+			Usage:  "The availability domain of the node(s) should be placed in",
+			EnvVar: "OCI_NODE_AVAILABILITY_DOMAIN",
 		},
-		mcnflag.StringFlag{
-			Name:   "oci-subnet-id",
-			Usage:  "Pre-existing subnet id in which you want to create the node(s)",
-			EnvVar: "OCI_SUBNET_ID",
-		},
-		mcnflag.StringFlag{
-			Name:   "oci-node-compartment-id",
-			Usage:  "The OCID of the compartment in which to create node(s)",
-			EnvVar: "OCI_NODE_COMPARTMENT_ID",
-		},
-		mcnflag.StringFlag{
-			Name:   "oci-vcn-compartment-id",
-			Usage:  "The OCID of the compartment in which the VCN exists",
-			EnvVar: "OCI_VCN_COMPARTMENT_ID",
-		},
-		mcnflag.StringFlag{
-			Name:   "oci-user-id",
-			Usage:  "The OCID of a user who has access to the specified tenancy/compartment",
-			EnvVar: "OCI_USER_ID",
-			Value:  "",
-		},
-		mcnflag.StringFlag{
-			Name:   "oci-region",
-			Usage:  "The region in which to create node(s)",
-			EnvVar: "OCI_REGION",
+		mcnflag.IntFlag{
+			Name:   "oci-node-docker-port",
+			Usage:  "Docker Port",
+			Value:  defaultDockerPort,
+			EnvVar: "OCI_NODE_DOCKER_PORT",
 		},
 		mcnflag.StringFlag{
 			Name:   "oci-fingerprint",
@@ -131,14 +111,29 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			EnvVar: "OCI_FINGERPRINT",
 		},
 		mcnflag.StringFlag{
-			Name:   "oci-private-key-path",
-			Usage:  "The private API key path for the specified OCI user, in PEM format",
-			EnvVar: "OCI_PRIVATE_KEY_PATH",
+			Name:   "oci-node-image",
+			Usage:  "The image to use for the node(s)",
+			EnvVar: "OCI_NODE_IMAGE",
+		},
+		mcnflag.StringFlag{
+			Name:   "oci-node-compartment-id",
+			Usage:  "The OCID of the compartment in which to create node(s)",
+			EnvVar: "OCI_NODE_COMPARTMENT_ID",
+		},
+		mcnflag.StringFlag{
+			Name:   "oci-node-public-key-path",
+			Usage:  "Optional SSH public key for the nodes",
+			EnvVar: "OCI_NODE_PUBLIC_KEY_PATH",
 		},
 		mcnflag.StringFlag{
 			Name:   "oci-private-key-contents",
 			Usage:  "The private API key contents for the specified OCI user, in PEM format",
 			EnvVar: "OCI_PRIVATE_KEY_CONTENTS",
+		},
+		mcnflag.StringFlag{
+			Name:   "oci-private-key-path",
+			Usage:  "The private API key path for the specified OCI user, in PEM format",
+			EnvVar: "OCI_PRIVATE_KEY_PATH",
 		},
 		mcnflag.StringFlag{
 			Name:   "oci-private-key-passphrase",
@@ -147,14 +142,9 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			Value:  "",
 		},
 		mcnflag.StringFlag{
-			Name:   "oci-node-public-key-path",
-			Usage:  "Optional SSH public key for the nodes",
-			EnvVar: "OCI_NODE_PUBLIC_KEY_PATH",
-		},
-		mcnflag.StringFlag{
-			Name:   "oci-node-availability-domain",
-			Usage:  "The availability domain of the node(s) should be placed in",
-			EnvVar: "OCI_NODE_AVAILABILITY_DOMAIN",
+			Name:   "oci-region",
+			Usage:  "The region in which to create node(s)",
+			EnvVar: "OCI_REGION",
 		},
 		mcnflag.StringFlag{
 			Name:   "oci-node-shape",
@@ -162,15 +152,31 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			EnvVar: "OCI_NODE_SHAPE",
 		},
 		mcnflag.StringFlag{
-			Name:   "oci-node-image",
-			Usage:  "The image to use for the node(s)",
-			EnvVar: "OCI_NODE_IMAGE",
+			Name:   "oci-subnet-id",
+			Usage:  "Pre-existing subnet id in which you want to create the node(s)",
+			EnvVar: "OCI_SUBNET_ID",
 		},
-		mcnflag.IntFlag{
-			Name:   "oci-node-docker-port",
-			Usage:  "Docker Port",
-			Value:  defaultDockerPort,
-			EnvVar: "OCI_NODE_DOCKER_PORT",
+		mcnflag.StringFlag{
+			Name:   "oci-tenancy-id",
+			Usage:  "The OCID of the tenancy in which to create node(s)",
+			EnvVar: "OCI_TENANCY_ID",
+			Value:  "",
+		},
+		mcnflag.StringFlag{
+			Name:   "oci-user-id",
+			Usage:  "The OCID of a user who has access to the specified tenancy/compartment",
+			EnvVar: "OCI_USER_ID",
+			Value:  "",
+		},
+		mcnflag.StringFlag{
+			Name:   "oci-vcn-compartment-id",
+			Usage:  "The OCID of the compartment in which the VCN exists",
+			EnvVar: "OCI_VCN_COMPARTMENT_ID",
+		},
+		mcnflag.StringFlag{
+			Name:   "oci-vcn-id",
+			Usage:  "Pre-existing VCN id in which you want to create the node(s)",
+			EnvVar: "OCI_VCN_ID",
 		},
 	}
 }
@@ -377,6 +383,8 @@ func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
 		}
 	}
 	d.Image = flags.String("oci-node-image")
+	// TODO map to prohibit public IP
+	d.AssignPublicIP = flags.Bool("oci-assign-public-ip")
 	return nil
 }
 
