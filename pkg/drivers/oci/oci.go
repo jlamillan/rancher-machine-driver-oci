@@ -91,91 +91,96 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 	return []mcnflag.Flag{
 		mcnflag.BoolFlag{
 			Name:   "oci-assign-public-ip",
-			Usage:  "Assign a public IP to the node",
+			Usage:  "Assign public IP to node(s)",
 			EnvVar: "OCI_ASSIGN_PUBLIC_IP",
 		},
 		mcnflag.StringFlag{
 			Name:   "oci-node-availability-domain",
-			Usage:  "The availability domain of the node(s) should be placed in",
+			Usage:  "Specify availability domain of the node(s) should be placed in",
 			EnvVar: "OCI_NODE_AVAILABILITY_DOMAIN",
 		},
 		mcnflag.IntFlag{
 			Name:   "oci-node-docker-port",
-			Usage:  "Docker Port",
+			Usage:  "Specify Docker port",
 			Value:  defaultDockerPort,
 			EnvVar: "OCI_NODE_DOCKER_PORT",
 		},
 		mcnflag.StringFlag{
 			Name:   "oci-fingerprint",
-			Usage:  "The fingerprint corresponding to the specified user's private API Key",
+			Usage:  "Specify fingerprint corresponding to the specified user's private API Key",
 			EnvVar: "OCI_FINGERPRINT",
 		},
 		mcnflag.StringFlag{
 			Name:   "oci-node-image",
-			Usage:  "The image to use for the node(s)",
+			Usage:  "Specify image to use for the node(s)",
 			EnvVar: "OCI_NODE_IMAGE",
 		},
 		mcnflag.StringFlag{
 			Name:   "oci-node-compartment-id",
-			Usage:  "The OCID of the compartment in which to create node(s)",
+			Usage:  "Specify OCID of the compartment in which to create node(s)",
 			EnvVar: "OCI_NODE_COMPARTMENT_ID",
 		},
 		mcnflag.StringFlag{
+			Name:   "oci-node-public-key-contents",
+			Usage:  "Specify SSH public key content for the nodes",
+			EnvVar: "OCI_NODE_PUBLIC_KEY_CONTENTS",
+		},
+		mcnflag.StringFlag{
 			Name:   "oci-node-public-key-path",
-			Usage:  "Optional SSH public key for the nodes",
+			Usage:  "Specify SSH public key path for the nodes",
 			EnvVar: "OCI_NODE_PUBLIC_KEY_PATH",
 		},
 		mcnflag.StringFlag{
 			Name:   "oci-private-key-contents",
-			Usage:  "The private API key contents for the specified OCI user, in PEM format",
+			Usage:  "Specify private API key contents for the specified OCI user, in PEM format",
 			EnvVar: "OCI_PRIVATE_KEY_CONTENTS",
 		},
 		mcnflag.StringFlag{
 			Name:   "oci-private-key-path",
-			Usage:  "The private API key path for the specified OCI user, in PEM format",
+			Usage:  "Specify private API key path for the specified OCI user, in PEM format",
 			EnvVar: "OCI_PRIVATE_KEY_PATH",
 		},
 		mcnflag.StringFlag{
 			Name:   "oci-private-key-passphrase",
-			Usage:  "The passphrase (if any) that protects private key file the specified OCI user",
+			Usage:  "Specify passphrase (if any) that protects private key file the specified OCI user",
 			EnvVar: "OCI_PRIVATE_KEY_PASSPHRASE",
 			Value:  "",
 		},
 		mcnflag.StringFlag{
 			Name:   "oci-region",
-			Usage:  "The region in which to create node(s)",
+			Usage:  "Specify region in which to create node(s)",
 			EnvVar: "OCI_REGION",
 		},
 		mcnflag.StringFlag{
 			Name:   "oci-node-shape",
-			Usage:  "The instance shape of the node(s)",
+			Usage:  "Specify instance shape of the node(s)",
 			EnvVar: "OCI_NODE_SHAPE",
 		},
 		mcnflag.StringFlag{
 			Name:   "oci-subnet-id",
-			Usage:  "Pre-existing subnet id in which you want to create the node(s)",
+			Usage:  "Specify pre-existing subnet id in which you want to create the node(s)",
 			EnvVar: "OCI_SUBNET_ID",
 		},
 		mcnflag.StringFlag{
 			Name:   "oci-tenancy-id",
-			Usage:  "The OCID of the tenancy in which to create node(s)",
+			Usage:  "Specify OCID of the tenancy in which to create node(s)",
 			EnvVar: "OCI_TENANCY_ID",
 			Value:  "",
 		},
 		mcnflag.StringFlag{
 			Name:   "oci-user-id",
-			Usage:  "The OCID of a user who has access to the specified tenancy/compartment",
+			Usage:  "Specify OCID of a user who has access to the specified tenancy/compartment",
 			EnvVar: "OCI_USER_ID",
 			Value:  "",
 		},
 		mcnflag.StringFlag{
 			Name:   "oci-vcn-compartment-id",
-			Usage:  "The OCID of the compartment in which the VCN exists",
+			Usage:  "Specify OCID of the compartment in which the VCN exists",
 			EnvVar: "OCI_VCN_COMPARTMENT_ID",
 		},
 		mcnflag.StringFlag{
 			Name:   "oci-vcn-id",
-			Usage:  "Pre-existing VCN id in which you want to create the node(s)",
+			Usage:  "Specify pre-existing VCN id in which you want to create the node(s)",
 			EnvVar: "OCI_VCN_ID",
 		},
 	}
@@ -362,8 +367,9 @@ func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
 		return errors.New("no OCI oci-fingerprint specified (--oci-fingerprint)")
 	}
 	d.PrivateKeyPath = flags.String("oci-private-key-path")
-	if d.PrivateKeyPath == "" {
-		return errors.New("no private key path specified (--oci-private-key-path)")
+	d.PrivateKeyContents = flags.String("oci-private-key-contents")
+	if d.PrivateKeyPath == "" && d.PrivateKeyContents == "" {
+		return errors.New("no private key path or content specified (--oci-private-key-path || --oci-private-key-contents)")
 	}
 	if d.PrivateKeyContents == "" && d.PrivateKeyPath != "" {
 		privateKeyBytes, err := ioutil.ReadFile(d.PrivateKeyPath)
@@ -371,10 +377,10 @@ func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
 			d.PrivateKeyContents = string(privateKeyBytes)
 		}
 	}
-	d.PrivateKeyContents = flags.String("oci-private-key-contents")
 	d.NodePublicSSHKeyPath = flags.String("oci-node-public-key-path")
-	if d.NodePublicSSHKeyPath == "" {
-		return errors.New("no public key path specified (--oci-node-public-key-path)")
+	d.NodePublicSSHKeyContents = flags.String("oci-node-public-key-contents")
+	if d.NodePublicSSHKeyPath == "" && d.NodePublicSSHKeyContents == "" {
+		return errors.New("no public key path or content specified (--oci-node-public-key-path || --oci-node-public-key-contents)")
 	}
 	if d.NodePublicSSHKeyContents == "" && d.NodePublicSSHKeyPath != "" {
 		publicKeyBytes, err := ioutil.ReadFile(d.NodePublicSSHKeyPath)

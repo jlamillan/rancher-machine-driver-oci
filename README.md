@@ -30,7 +30,8 @@ make install
 ## Provision a node using OCI plugin for docker-machine
 
 ```bash
-$ docker-machine create --driver oci --oci-vcn-id ocid1.vcn.oc1.iad.aaaaaaaaaaaaaaaaaaaaaaaa  --oci-tenancy-id ocid1.tenancy.oc1..aaaaaaaaaaaaaaaaaaaaaaaa --oci-user-id ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaa --oci-region us-ashburn-1 --oci-private-key-path /Users/jemillan/.oci/api.key.priv.pem --oci-fingerprint xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx --oci-node-public-key-path /Users/jemillan/.ssh/id_rsa.pub --oci-node-compartment-id ocid1.compartment.oc1..aaaaaaaaaaaaaaaaaaaaaaaa --oci-vcn-compartment-id ocid1.compartment.oc1..aaaaaaaaaaaaaaaaaaaaaaaa --oci-subnet-id ocid1.subnet.oc1.iad.aaaaaaaaaaaaaaaaaaaaaaaa --oci-node-availability-domain jGnV:US-ASHBURN-AD-2 --oci-node-shape VM.Standard2.4 node
+$ docker-machine create -d oci --oci-region us-phoenix-1 --oci-subnet-id ocid1.subnet.oc1.phx.aaaaaaaaaaaaaaaaaaaaaaaa --oci-tenancy-id ocid1.tenancy.oc1..aaaaaaaaaaaaaaaaaaaaaaaa --oci-vcn-id ocid1.vcn.oc1.phx.aaaaaaaaaaaaaaaaaaaaaaaa --oci-fingerprint xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx --oci-node-availability-domain jGnV:PHX-1-AD2 --oci-node-image Oracle-Linux-7.6 --oci-user-id ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaa --oci-vcn-compartment-id ocid1.compartment.oc1..aaaaaaaaaaaaaaaaaaaaaaaa --oci-node-compartment-id ocid1.compartment.oc1..aaaaaaaaaaaaaaaaaaaaaaaa --oci-node-docker-port 2376 --oci-private-key-path /path/to/api.key.priv.pem  --oci-node-shape VM.Standard2.1 --oci-node-public-key-path /path/to/.ssh/id_rsa.pub node
+
 Running pre-create checks...
 (node) Verifying node image availability... 
 Creating machine...
