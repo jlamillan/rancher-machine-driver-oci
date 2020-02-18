@@ -1,6 +1,10 @@
 package oci
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"github.com/oracle/oci-go-sdk/common"
@@ -9,8 +13,10 @@ import (
 	"github.com/rancher/machine/libmachine/log"
 	"github.com/rancher/machine/libmachine/mcnflag"
 	"github.com/rancher/machine/libmachine/state"
+	"golang.org/x/crypto/ssh"
 	"io/ioutil"
-	"strings"
+	"os"
+	"path/filepath"
 )
 
 const (
@@ -19,29 +25,28 @@ const (
 	defaultSSHUser     = "opc"
 	defaultImage       = "Oracle-Linux-7.7"
 	defaultDockerPort  = 2376
+	sshBitLen          = 4096
 )
 
 // Driver is the implementation of BaseDriver interface
 type Driver struct {
 	*drivers.BaseDriver
-	AssignPublicIP           bool
-	AvailabilityDomain       string
-	DockerPort               int
-	Fingerprint              string
-	Image                    string
-	NodeCompartmentID        string
-	NodePublicSSHKeyContents string
-	NodePublicSSHKeyPath     string
-	PrivateKeyContents       string
-	PrivateKeyPassphrase     string
-	PrivateKeyPath           string
-	Region                   string
-	Shape                    string
-	SubnetID                 string
-	TenancyID                string
-	UserID                   string
-	VCNCompartmentID         string
-	VCNID                    string
+	AssignPublicIP       bool
+	AvailabilityDomain   string
+	DockerPort           int
+	Fingerprint          string
+	Image                string
+	NodeCompartmentID    string
+	PrivateKeyContents   string
+	PrivateKeyPassphrase string
+	PrivateKeyPath       string
+	Region               string
+	Shape                string
+	SubnetID             string
+	TenancyID            string
+	UserID               string
+	VCNCompartmentID     string
+	VCNID                string
 	// Runtime values
 	InstanceID string
 }
@@ -50,6 +55,7 @@ type Driver struct {
 func NewDriver(hostName, storePath string) *Driver {
 	return &Driver{
 		BaseDriver: &drivers.BaseDriver{
+			SSHUser:     defaultSSHUser,
 			MachineName: hostName,
 			StorePath:   storePath,
 		},
@@ -65,7 +71,31 @@ func (d *Driver) Create() error {
 		return err
 	}
 
-	d.InstanceID, err = oci.CreateInstance(defaultNodeNamePfx+d.MachineName, d.AvailabilityDomain, d.NodeCompartmentID, d.Shape, d.Image, d.SubnetID, d.NodePublicSSHKeyContents)
+	// Create SSH key-pair
+	privateKey, err := generatePrivateKey(sshBitLen)
+	if err != nil {
+		return err
+	}
+	privateKeyBytes := encodePEM(privateKey)
+
+	publicKeyBytes, err := generatePublicKey(&privateKey.PublicKey)
+	if err != nil {
+		return err
+	}
+
+	if _, err := os.Stat(d.GetSSHKeyPath()); os.IsNotExist(err) {
+		err = os.MkdirAll(filepath.Dir(d.GetSSHKeyPath()), 0750)
+		if err != nil {
+			return err
+		}
+	}
+
+	err = ioutil.WriteFile(d.GetSSHKeyPath(), []byte(privateKeyBytes), 0600)
+	if err != nil {
+		return err
+	}
+
+	d.InstanceID, err = oci.CreateInstance(defaultNodeNamePfx+d.MachineName, d.AvailabilityDomain, d.NodeCompartmentID, d.Shape, d.Image, d.SubnetID, string(publicKeyBytes))
 	if err != nil {
 		return err
 	}
@@ -204,12 +234,6 @@ func (d *Driver) GetMachineName() string {
 func (d *Driver) GetSSHHostname() (string, error) {
 	log.Debug("oci.GetSSHHostname()")
 	return d.GetIP()
-}
-
-// GetSSHKeyPath returns key path for use with ssh
-func (d *Driver) GetSSHKeyPath() string {
-	log.Debug("oci.GetSSHKeyPath()")
-	return strings.Replace(d.NodePublicSSHKeyPath, ".pub", "", 1)
 }
 
 // GetSSHPort returns port for use with ssh
@@ -375,17 +399,7 @@ func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
 			d.PrivateKeyContents = string(privateKeyBytes)
 		}
 	}
-	d.NodePublicSSHKeyPath = flags.String("oci-node-public-key-path")
-	d.NodePublicSSHKeyContents = flags.String("oci-node-public-key-contents")
-	if d.NodePublicSSHKeyPath == "" && d.NodePublicSSHKeyContents == "" {
-		return errors.New("no public key path or content specified (--oci-node-public-key-path || --oci-node-public-key-contents)")
-	}
-	if d.NodePublicSSHKeyContents == "" && d.NodePublicSSHKeyPath != "" {
-		publicKeyBytes, err := ioutil.ReadFile(d.NodePublicSSHKeyPath)
-		if err == nil {
-			d.NodePublicSSHKeyContents = string(publicKeyBytes)
-		}
-	}
+
 	d.Image = flags.String("oci-node-image")
 	// TODO map to prohibit public IP
 	d.AssignPublicIP = flags.Bool("oci-assign-public-ip")
@@ -423,4 +437,40 @@ func (d *Driver) initOCIClient() (Client, error) {
 	}
 
 	return *ociClient, nil
+}
+
+func generatePrivateKey(bitSize int) (*rsa.PrivateKey, error) {
+	// Private Key generation
+	privateKey, err := rsa.GenerateKey(rand.Reader, bitSize)
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate RSA Private Key
+	err = privateKey.Validate()
+	if err != nil {
+		return nil, err
+	}
+
+	return privateKey, nil
+}
+
+func generatePublicKey(publicKey *rsa.PublicKey) ([]byte, error) {
+	publicRsaKey, err := ssh.NewPublicKey(publicKey)
+	if err != nil {
+		return nil, err
+	}
+
+	return ssh.MarshalAuthorizedKey(publicRsaKey), nil
+}
+
+func encodePEM(privateKey *rsa.PrivateKey) []byte {
+
+	block := pem.Block{
+		Type:    "RSA PRIVATE KEY",
+		Headers: nil,
+		Bytes:   x509.MarshalPKCS1PrivateKey(privateKey),
+	}
+
+	return pem.EncodeToMemory(&block)
 }
