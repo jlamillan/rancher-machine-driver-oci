@@ -31,7 +31,6 @@ const (
 // Driver is the implementation of BaseDriver interface
 type Driver struct {
 	*drivers.BaseDriver
-	AssignPublicIP       bool
 	AvailabilityDomain   string
 	DockerPort           int
 	Fingerprint          string
@@ -100,6 +99,9 @@ func (d *Driver) Create() error {
 		return err
 	}
 
+	ip, _ := d.GetIP()
+	log.Infof("created instance ID %s, IP address %s", d.InstanceID, ip)
+
 	return nil
 }
 
@@ -114,11 +116,6 @@ func (d *Driver) DriverName() string {
 func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 	log.Debug("oci.GetCreateFlags()")
 	return []mcnflag.Flag{
-		mcnflag.BoolFlag{
-			Name:   "oci-assign-public-ip",
-			Usage:  "Assign public IP to node(s)",
-			EnvVar: "OCI_ASSIGN_PUBLIC_IP",
-		},
 		mcnflag.StringFlag{
 			Name:   "oci-node-availability-domain",
 			Usage:  "Specify availability domain the node(s) should use",
@@ -182,6 +179,18 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 			Usage:  "Specify instance shape of the node(s)",
 			EnvVar: "OCI_NODE_SHAPE",
 		},
+		mcnflag.IntFlag{
+			Name:   "oci-ssh-port",
+			Usage:  "Specify SSH port for the node(s)",
+			EnvVar: "OCI_SSH_PORT",
+			Value:  defaultSSHPort,
+		},
+		mcnflag.StringFlag{
+			Name:   "oci-ssh-user",
+			Usage:  "Specify SSH user for the node(s)",
+			EnvVar: "OCI_SSH_USER",
+			Value:  defaultSSHUser,
+		},
 		mcnflag.StringFlag{
 			Name:   "oci-subnet-id",
 			Usage:  "Specify pre-existing subnet id in which you want to create the node(s)",
@@ -216,12 +225,20 @@ func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 // e.g. 1.2.3.4 or docker-host-d60b70a14d3a.cloudapp.net
 func (d *Driver) GetIP() (string, error) {
 	log.Debug("oci.GetIP()")
-	oci, err := d.initOCIClient()
-	if err != nil {
-		return "", err
+
+	if d.IPAddress == "" {
+		oci, err := d.initOCIClient()
+		if err != nil {
+			return "", err
+		}
+		ip, err := oci.GetInstanceIP(d.InstanceID, d.NodeCompartmentID)
+		if err != nil {
+			return "", err
+		}
+		d.IPAddress = ip
 	}
 
-	return oci.GetInstanceIP(d.InstanceID, d.NodeCompartmentID)
+	return d.IPAddress, nil
 }
 
 // GetMachineName returns the name of the machine
@@ -239,12 +256,14 @@ func (d *Driver) GetSSHHostname() (string, error) {
 // GetSSHPort returns port for use with ssh
 func (d *Driver) GetSSHPort() (int, error) {
 	log.Debug("oci.GetSSHPort()")
+
 	return defaultSSHPort, nil
 }
 
 // GetSSHUsername returns username for use with ssh
 func (d *Driver) GetSSHUsername() string {
 	log.Debug("oci.GetSSHUsername()")
+
 	return defaultSSHUser
 }
 
@@ -401,8 +420,9 @@ func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
 	}
 
 	d.Image = flags.String("oci-node-image")
-	// TODO map to prohibit public IP
-	d.AssignPublicIP = flags.Bool("oci-assign-public-ip")
+	d.SSHUser = flags.String("oci-ssh-user")
+	d.SSHPort = flags.Int("oci-ssh-port")
+
 	return nil
 }
 
