@@ -100,21 +100,19 @@ func (c *Client) CreateInstance(displayName, availabilityDomain, compartmentID, 
 		return "", err
 	}
 
-	/*
-		// should retry condition check which returns a bool value indicating whether to do retry or not
-		// it checks the lifecycle status equals to Running or not for this case
-		shouldRetryFunc := func(r common.OCIOperationResponse) bool {
-			if converted, ok := r.Response.(core.GetInstanceResponse); ok {
-				return converted.LifecycleState != core.InstanceLifecycleStateRunning
-			}
-			return true
+	// wait until lifecycle status is Running
+	pollUntilRunning := func(r common.OCIOperationResponse) bool {
+		if converted, ok := r.Response.(core.GetInstanceResponse); ok {
+			return converted.LifecycleState != core.InstanceLifecycleStateRunning
 		}
-	*/
+		return true
+	}
+
 	// create get instance request with a retry policy which takes a function
 	// to determine shouldRetry or not
 	pollingGetRequest := core.GetInstanceRequest{
-		InstanceId: createResp.Instance.Id,
-		//RequestMetadata: helpers.GetRequestMetadataWithCustomizedRetryPolicy(shouldRetryFunc),
+		InstanceId:      createResp.Instance.Id,
+		RequestMetadata: helpers.GetRequestMetadataWithCustomizedRetryPolicy(pollUntilRunning),
 	}
 
 	instance, pollError := c.computeClient.GetInstance(context.Background(), pollingGetRequest)
@@ -122,15 +120,15 @@ func (c *Client) CreateInstance(displayName, availabilityDomain, compartmentID, 
 		return "", err
 	}
 
-	// Give the instance a bit of a head start to initialize.
-	time.Sleep(30 * time.Second)
-
 	return *instance.Id, nil
 }
 
 // GetInstance gets a compute instance by id.
 func (c *Client) GetInstance(id string) (core.Instance, error) {
 	instanceResp, err := c.computeClient.GetInstance(context.Background(), core.GetInstanceRequest{InstanceId: &id})
+	if err != nil {
+		return core.Instance{}, err
+	}
 	return instanceResp.Instance, err
 }
 
@@ -138,6 +136,75 @@ func (c *Client) GetInstance(id string) (core.Instance, error) {
 func (c *Client) TerminateInstance(id string) error {
 	_, err := c.computeClient.TerminateInstance(context.Background(), core.TerminateInstanceRequest{InstanceId: &id})
 	return err
+}
+
+// StopInstance stops a compute instance by id and waits for it to reach the Stopped state.
+func (c *Client) StopInstance(id string) error {
+
+	actionRequest := core.InstanceActionRequest{}
+	actionRequest.Action = core.InstanceActionActionStop
+	actionRequest.InstanceId = &id
+
+	stopResp, err := c.computeClient.InstanceAction(context.Background(), actionRequest)
+	if err != nil {
+		return err
+	}
+
+	// wait until lifecycle status is Stopped
+	pollUntilStopped := func(r common.OCIOperationResponse) bool {
+		if converted, ok := r.Response.(core.GetInstanceResponse); ok {
+			return converted.LifecycleState != core.InstanceLifecycleStateStopped
+		}
+		return true
+	}
+
+	pollingGetRequest := core.GetInstanceRequest{
+		InstanceId:      stopResp.Instance.Id,
+		RequestMetadata: helpers.GetRequestMetadataWithCustomizedRetryPolicy(pollUntilStopped),
+	}
+
+	_, err = c.computeClient.GetInstance(context.Background(), pollingGetRequest)
+
+	return err
+}
+
+// StartInstance starts a compute instance by id and waits for it to reach the Running state.
+func (c *Client) StartInstance(id string) error {
+
+	actionRequest := core.InstanceActionRequest{}
+	actionRequest.Action = core.InstanceActionActionStart
+	actionRequest.InstanceId = &id
+
+	startResp, err := c.computeClient.InstanceAction(context.Background(), actionRequest)
+	if err != nil {
+		return err
+	}
+
+	// wait until lifecycle status is Running
+	pollUntilRunning := func(r common.OCIOperationResponse) bool {
+		if converted, ok := r.Response.(core.GetInstanceResponse); ok {
+			return converted.LifecycleState != core.InstanceLifecycleStateRunning
+		}
+		return true
+	}
+
+	pollingGetRequest := core.GetInstanceRequest{
+		InstanceId:      startResp.Instance.Id,
+		RequestMetadata: helpers.GetRequestMetadataWithCustomizedRetryPolicy(pollUntilRunning),
+	}
+
+	_, err = c.computeClient.GetInstance(context.Background(), pollingGetRequest)
+
+	return err
+}
+
+// RestartInstance stops and starts a compute instance by id and waits for it to be running again
+func (c *Client) RestartInstance(id string) error {
+	err := c.StopInstance(id)
+	if err != nil {
+		return err
+	}
+	return c.StartInstance(id)
 }
 
 // GetInstanceIP returns the public IP (or private IP if that is what it has).

@@ -89,7 +89,7 @@ func (d *Driver) Create() error {
 		}
 	}
 
-	err = ioutil.WriteFile(d.GetSSHKeyPath(), []byte(privateKeyBytes), 0600)
+	err = ioutil.WriteFile(d.GetSSHKeyPath(), privateKeyBytes, 0600)
 	if err != nil {
 		return err
 	}
@@ -358,9 +358,13 @@ func (d *Driver) Remove() error {
 // Restart a host. This may just call Stop(); Start() if the provider does not
 // have any special restart behaviour.
 func (d *Driver) Restart() error {
-	// TODO
 	log.Debug("oci.Restart()")
-	return nil
+	oci, err := d.initOCIClient()
+	if err != nil {
+		return err
+	}
+
+	return oci.RestartInstance(d.InstanceID)
 }
 
 // SetConfigFromFlags configures the driver with the object that was returned
@@ -428,16 +432,24 @@ func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
 
 // Start a host
 func (d *Driver) Start() error {
-	// TODO
 	log.Debug("oci.Start()")
-	return nil
+	oci, err := d.initOCIClient()
+	if err != nil {
+		return err
+	}
+
+	return oci.StartInstance(d.InstanceID)
 }
 
 // Stop a host gracefully
 func (d *Driver) Stop() error {
-	// TODO
 	log.Debug("oci.Stop()")
-	return nil
+	oci, err := d.initOCIClient()
+	if err != nil {
+		return err
+	}
+
+	return oci.StopInstance(d.InstanceID)
 }
 
 // initOCIClient is a helper function that constructs a new
